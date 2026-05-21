@@ -15,21 +15,26 @@ app.get("/", (req, res) => {
 });
 
 /************************************************
- * 소독 테스트
+ * 소독 처리
  ************************************************/
 app.post("/disinfect", async (req, res) => {
 
   const {
-    barcode,
-    productName,
-    user
+    loginId,
+    loginPw,
+    fullBarcode
   } = req.body;
 
   console.log(req.body);
 
+  let browser;
+
   try {
 
-    const browser =
+    /********************************************
+     * 브라우저 실행
+     ********************************************/
+    browser =
       await chromium.launch({
 
         headless: true
@@ -43,7 +48,10 @@ app.post("/disinfect", async (req, res) => {
      * 로그인 페이지 이동
      ********************************************/
     await page.goto(
-      "https://eroumcare.com/bbs/login.php"
+      "https://eroumcare.com/bbs/login.php",
+      {
+        waitUntil: "networkidle"
+      }
     );
 
     /********************************************
@@ -51,7 +59,7 @@ app.post("/disinfect", async (req, res) => {
      ********************************************/
     await page.fill(
       "#user-id",
-      "cho"
+      loginId
     );
 
     /********************************************
@@ -59,7 +67,7 @@ app.post("/disinfect", async (req, res) => {
      ********************************************/
     await page.fill(
       "#user-pass",
-      "cho1234"
+      loginPw
     );
 
     /********************************************
@@ -76,11 +84,71 @@ app.post("/disinfect", async (req, res) => {
 
     console.log("로그인 성공");
 
+    /********************************************
+     * 소독지시 페이지 이동
+     ********************************************/
+    await page.goto(
+      "https://eroumcare.com/subrental/warehouse/disinfection.php",
+      {
+        waitUntil: "networkidle"
+      }
+    );
+
+    /********************************************
+     * 검색창 입력
+     ********************************************/
+    await page.fill(
+      "#search_text",
+      fullBarcode
+    );
+
+    /********************************************
+     * 검색 버튼 클릭
+     ********************************************/
+    await page.click(
+      "#search_btn"
+    );
+
+    /********************************************
+     * 검색 결과 대기
+     ********************************************/
+    await page.waitForTimeout(3000);
+
+    /********************************************
+     * 소독대기 탭 클릭
+     ********************************************/
+    await page.click(
+      "#tab_disinfection_waiting"
+    );
+
+    await page.waitForTimeout(2000);
+
+    /********************************************
+     * waitingNum 확인
+     ********************************************/
+    const waitingNum =
+      await page.locator(
+        "#waitingNum"
+      ).innerText();
+
+    console.log(
+      "waitingNum:",
+      waitingNum
+    );
+
+    /********************************************
+     * 브라우저 종료
+     ********************************************/
     await browser.close();
 
+    /********************************************
+     * 결과 반환
+     ********************************************/
     res.json({
 
-      success: true
+      success: true,
+
+      waitingNum: waitingNum
 
     });
 
@@ -88,9 +156,16 @@ app.post("/disinfect", async (req, res) => {
 
     console.log(e);
 
+    if (browser) {
+
+      await browser.close();
+
+    }
+
     res.json({
 
       success: false,
+
       error: String(e)
 
     });
