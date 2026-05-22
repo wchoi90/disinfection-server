@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 /************************************************
  * 소독 처리
  ************************************************/
-app.post("/disinfection", async (req, res) => {
+app.post("/disinfect", async (req, res) => {
 
   const {
     loginId,
