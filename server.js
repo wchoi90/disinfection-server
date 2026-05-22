@@ -145,7 +145,10 @@ app.post("/disinfect", async (req, res) => {
        * 체크박스 선택
        ******************************************/
       await page.click(
-        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label"
+        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
+  {
+    force: true
+  }
       );
 
       await page.waitForTimeout(1000);
@@ -181,7 +184,10 @@ app.post("/disinfect", async (req, res) => {
        * 진행중 체크
        ******************************************/
       await page.click(
-        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label"
+        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
+  {
+    force: true
+  }
       );
 
       await page.waitForTimeout(1000);
@@ -199,7 +205,10 @@ app.post("/disinfect", async (req, res) => {
        * 완료목록 체크
        ******************************************/
       await page.click(
-        "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label"
+        "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label",
+  {
+    force: true
+  }
       );
 
       await page.waitForTimeout(1000);
