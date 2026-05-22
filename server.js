@@ -289,10 +289,6 @@ app.post("/disinfect", async (req, res) => {
     /********************************************
      * 소독완료 버튼
      ********************************************/
-    console.log(
-      "소독완료 버튼 클릭 시작"
-    );
-
     await page.click(
       "#btn_disinfection_done"
     );
@@ -343,13 +339,29 @@ app.post("/disinfect", async (req, res) => {
       "창고이동 버튼 클릭"
     );
 
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000);
+
+    /********************************************
+     * 드롭다운 열기
+     ********************************************/
+    await page.click(
+      "#sel_move_svwr_id .selected",
+      {
+        force: true
+      }
+    );
+
+    console.log(
+      "랙 드롭다운 열기"
+    );
+
+    await page.waitForTimeout(1000);
 
     /********************************************
      * 렉 리스트 대기
      ********************************************/
     await page.waitForSelector(
-      "#sel_move_svwr_id > div.option.active > ul > li > button",
+      "#sel_move_svwr_id .option.active ul li button",
       {
         timeout: 10000
       }
@@ -360,7 +372,7 @@ app.post("/disinfect", async (req, res) => {
      ********************************************/
     const rackButtons =
       await page.$$(
-        "#sel_move_svwr_id > div.option.active > ul > li > button"
+        "#sel_move_svwr_id .option.active ul li button"
       );
 
     let selected = false;
@@ -413,11 +425,16 @@ app.post("/disinfect", async (req, res) => {
 
     }
 
+    await page.waitForTimeout(1000);
+
     /********************************************
-     * 이동 버튼
+     * 이동 버튼 클릭
      ********************************************/
     await page.click(
-      "#move_rack_submit"
+      "#move_rack_submit",
+      {
+        force: true
+      }
     );
 
     console.log(
