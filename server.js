@@ -332,7 +332,10 @@ app.post("/disinfect", async (req, res) => {
      * 창고이동 버튼
      ********************************************/
     await page.click(
-      "#btn_move_rack"
+      "#btn_move_rack",
+      {
+        force: true
+      }
     );
 
     console.log(
@@ -379,23 +382,39 @@ app.post("/disinfect", async (req, res) => {
 
     for (const btn of rackButtons) {
 
+      const available =
+        await btn.getAttribute(
+          "data-available"
+        );
+
       const text =
         await btn.innerText();
 
-      console.log(text);
+      console.log(
+        "랙:",
+        text,
+        "available:",
+        available
+      );
 
-      if (
-        !text.includes("사용가능: 0")
-      ) {
+      if (available === "1") {
 
         console.log(
           "선택시도:",
           text
         );
 
+        /**************************************
+         * 렉 클릭
+         **************************************/
         await btn.click({
           force: true
         });
+
+        /**************************************
+         * 선택 반영 대기
+         **************************************/
+        await page.waitForTimeout(2000);
 
         selected = true;
 
@@ -425,8 +444,6 @@ app.post("/disinfect", async (req, res) => {
 
     }
 
-    await page.waitForTimeout(1000);
-
     /********************************************
      * 이동 버튼 클릭
      ********************************************/
@@ -438,7 +455,7 @@ app.post("/disinfect", async (req, res) => {
     );
 
     console.log(
-      "창고이동 완료"
+      "이동 버튼 클릭 완료"
     );
 
     await page.waitForTimeout(5000);
