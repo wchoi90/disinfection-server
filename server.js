@@ -315,10 +315,11 @@ app.post("/disinfect", async (req, res) => {
     );
 
     await page.waitForSelector(
-      "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label",
-      {
-        timeout: 30000
-      }
+  "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label",
+    {
+      timeout: 30000,
+      state: "attached"
+    }
     );
 
     console.log(
