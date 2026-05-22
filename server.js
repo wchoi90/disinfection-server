@@ -315,11 +315,11 @@ app.post("/disinfect", async (req, res) => {
     );
 
     await page.waitForSelector(
-  "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label",
-    {
-      timeout: 30000,
-      state: "attached"
-    }
+      "#disinfection_item_fixed_list > tbody > tr > td.Tcenter > div > label",
+      {
+        timeout: 30000,
+        state: "attached"
+      }
     );
 
     console.log(
@@ -330,7 +330,7 @@ app.post("/disinfect", async (req, res) => {
      * 완료목록 체크
      ********************************************/
     await page.click(
-      "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label",
+      "#disinfection_item_fixed_list > tbody > tr > td.Tcenter > div > label",
       {
         force: true
       }
