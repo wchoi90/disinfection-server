@@ -45,6 +45,20 @@ app.post("/disinfect", async (req, res) => {
       await browser.newPage();
 
     /********************************************
+     * alert / confirm 자동 확인
+     ********************************************/
+    page.on("dialog", async dialog => {
+
+      console.log(
+        "팝업:",
+        dialog.message()
+      );
+
+      await dialog.accept();
+
+    });
+
+    /********************************************
      * 로그인 페이지 이동
      ********************************************/
     await page.goto(
@@ -124,7 +138,7 @@ app.post("/disinfect", async (req, res) => {
     });
 
     /********************************************
-     * 소독대기 상태 여부
+     * 상태 확인
      ********************************************/
     let isWaiting =
       waitingNum.trim() === "1";
