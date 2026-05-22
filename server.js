@@ -27,12 +27,14 @@ app.post("/disinfect", async (req, res) => {
 
   console.log(req.body);
 
+  let browser;
+
   try {
 
     /********************************************
      * 브라우저 실행
      ********************************************/
-    const browser =
+    browser =
       await chromium.launch({
 
         headless: true
@@ -69,9 +71,6 @@ app.post("/disinfect", async (req, res) => {
       ".btn_submit_01"
     );
 
-    /********************************************
-     * 로그인 대기
-     ********************************************/
     await page.waitForTimeout(3000);
 
     console.log("로그인 성공");
@@ -95,19 +94,16 @@ app.post("/disinfect", async (req, res) => {
     );
 
     /********************************************
-     * 검색 버튼 클릭
+     * 검색 버튼
      ********************************************/
     await page.click(
       "#search_btn"
     );
 
-    /********************************************
-     * 검색 대기
-     ********************************************/
     await page.waitForTimeout(3000);
 
     /********************************************
-     * 소독대기 탭 클릭
+     * 소독대기 탭
      ********************************************/
     await page.click(
       "#tab_disinfection_waiting"
@@ -128,9 +124,55 @@ app.post("/disinfect", async (req, res) => {
     });
 
     /********************************************
-     * 대상 없으면 종료
+     * 소독대기 상태 여부
      ********************************************/
-    if (waitingNum.trim() !== "1") {
+    let isWaiting =
+      waitingNum.trim() === "1";
+
+    let isProgress =
+      false;
+
+    /********************************************
+     * 소독대기 없으면 진행중 확인
+     ********************************************/
+    if (!isWaiting) {
+
+      await page.click(
+        "#tab_disinfection_progress"
+      );
+
+      await page.waitForTimeout(3000);
+
+      const progressNum =
+        await page.locator(
+          "#progressNum"
+        ).innerText();
+
+      console.log({
+        progressNum
+      });
+
+      if (
+        progressNum.trim() === "1"
+      ) {
+
+        isProgress = true;
+
+        console.log(
+          "이미 소독진행중 상태"
+        );
+
+      }
+
+    }
+
+    /********************************************
+     * 둘다 아니면 종료
+     ********************************************/
+    if (
+      !isWaiting &&
+      !isProgress
+    ) {
 
       await browser.close();
 
@@ -144,47 +186,75 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 소독대기 체크
+     * 소독대기 처리
      ********************************************/
-    await page.click(
-      "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
-      {
-        force: true
-      }
+    if (isWaiting) {
+
+      console.log(
+        "소독대기 처리 시작"
+      );
+
+      /******************************************
+       * 체크
+       ******************************************/
+      await page.click(
+        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
+        {
+          force: true
+        }
+      );
+
+      console.log(
+        "소독대기 체크 완료"
+      );
+
+      /******************************************
+       * 소독지시 버튼
+       ******************************************/
+      await page.click(
+        "#disinfection_order_btn"
+      );
+
+      console.log(
+        "소독지시 버튼 클릭"
+      );
+
+      await page.waitForTimeout(2000);
+
+      /******************************************
+       * 이동 버튼
+       ******************************************/
+      await page.click(
+        "#order_submit"
+      );
+
+      console.log(
+        "이동 버튼 클릭"
+      );
+
+      await page.waitForTimeout(5000);
+
+      /******************************************
+       * 소독진행중 탭
+       ******************************************/
+      await page.click(
+        "#tab_disinfection_progress"
+      );
+
+      console.log(
+        "소독진행중 탭 클릭"
+      );
+
+      await page.waitForTimeout(3000);
+
+    }
+
+    /********************************************
+     * 소독진행중 처리
+     ********************************************/
+    console.log(
+      "소독진행중 처리 시작"
     );
-
-    /********************************************
-     * 소독지시 버튼
-     ********************************************/
-    await page.click(
-      "#disinfection_order_btn"
-    );
-
-    /********************************************
-     * 팝업 대기
-     ********************************************/
-    await page.waitForTimeout(2000);
-
-    /********************************************
-     * 이동 버튼
-     ********************************************/
-    await page.click(
-      "#order_submit"
-    );
-
-    /********************************************
-     * 처리 대기
-     ********************************************/
-    await page.waitForTimeout(3000);
-
-    /********************************************
-     * 소독진행중 탭
-     ********************************************/
-    await page.click(
-      "#tab_disinfection_progress"
-    );
-
-    await page.waitForTimeout(2000);
 
     /********************************************
      * 진행중 체크
@@ -196,21 +266,49 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
+    console.log(
+      "소독진행중 체크 완료"
+    );
+
+    await page.waitForTimeout(2000);
+
     /********************************************
      * 소독완료 버튼
      ********************************************/
+    console.log(
+      "소독완료 버튼 클릭 시작"
+    );
+
     await page.click(
       "#btn_disinfection_done"
+    );
+
+    console.log(
+      "소독완료 버튼 클릭 완료"
+    );
+
+    await page.waitForTimeout(5000);
+
+    console.log(
+      "5초 대기 완료"
     );
 
     /********************************************
      * 완료목록 생성 대기
      ********************************************/
+    console.log(
+      "완료목록 대기 시작"
+    );
+
     await page.waitForSelector(
       "#disinfection_item_fixed_list > tbody > tr:nth-child(1) > td.Tcenter > div > label",
       {
         timeout: 30000
       }
+    );
+
+    console.log(
+      "완료목록 생성 완료"
     );
 
     /********************************************
@@ -223,6 +321,10 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
+    console.log(
+      "완료목록 체크 완료"
+    );
+
     /********************************************
      * 창고이동 버튼
      ********************************************/
@@ -230,10 +332,14 @@ app.post("/disinfect", async (req, res) => {
       "#btn_move_rack"
     );
 
+    console.log(
+      "창고이동 버튼 클릭"
+    );
+
     await page.waitForTimeout(3000);
 
     /********************************************
-     * 렉 버튼 찾기
+     * 렉 선택
      ********************************************/
     const rackButtons =
       await page.$$(
@@ -268,7 +374,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 렉 없으면 실패
+     * 렉 없으면 종료
      ********************************************/
     if (!selected) {
 
@@ -284,25 +390,26 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 이동 버튼 클릭
+     * 이동 실행
      ********************************************/
     await page.click(
       "#move_rack_submit"
     );
 
-    /********************************************
-     * 완료 대기
-     ********************************************/
-    await page.waitForTimeout(5000);
-
     console.log(
-      "소독 완료"
+      "창고이동 완료"
     );
+
+    await page.waitForTimeout(5000);
 
     /********************************************
      * 브라우저 종료
      ********************************************/
     await browser.close();
+
+    console.log(
+      "전체 소독 프로세스 완료"
+    );
 
     /********************************************
      * 성공 반환
@@ -317,6 +424,12 @@ app.post("/disinfect", async (req, res) => {
   } catch (e) {
 
     console.log(e);
+
+    if (browser) {
+
+      await browser.close();
+
+    }
 
     res.json({
 
@@ -333,7 +446,7 @@ app.post("/disinfect", async (req, res) => {
  * 서버 시작
  ************************************************/
 const PORT =
-  process.env.PORT || 3000;
+  process.env.PORT || 8080;
 
 app.listen(PORT, () => {
 
