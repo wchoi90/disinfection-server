@@ -303,17 +303,9 @@ app.post("/disinfect", async (req, res) => {
 
     await page.waitForTimeout(5000);
 
-    console.log(
-      "5초 대기 완료"
-    );
-
     /********************************************
      * 완료목록 생성 대기
      ********************************************/
-    console.log(
-      "완료목록 대기 시작"
-    );
-
     await page.waitForSelector(
       "#disinfection_item_fixed_list > tbody > tr > td.Tcenter > div > label",
       {
@@ -354,11 +346,21 @@ app.post("/disinfect", async (req, res) => {
     await page.waitForTimeout(3000);
 
     /********************************************
+     * 렉 리스트 대기
+     ********************************************/
+    await page.waitForSelector(
+      "#sel_move_svwr_id > div.option.active > ul > li > button",
+      {
+        timeout: 10000
+      }
+    );
+
+    /********************************************
      * 렉 선택
      ********************************************/
     const rackButtons =
       await page.$$(
-        "#sel_move_svwr_id ul li button"
+        "#sel_move_svwr_id > div.option.active > ul > li > button"
       );
 
     let selected = false;
@@ -374,7 +376,14 @@ app.post("/disinfect", async (req, res) => {
         !text.includes("사용가능: 0")
       ) {
 
-        await btn.click();
+        console.log(
+          "선택시도:",
+          text
+        );
+
+        await btn.click({
+          force: true
+        });
 
         selected = true;
 
@@ -405,7 +414,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 이동 실행
+     * 이동 버튼
      ********************************************/
     await page.click(
       "#move_rack_submit"
