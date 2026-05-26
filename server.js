@@ -333,38 +333,28 @@ app.post("/disinfect", async (req, res) => {
     await page.waitForTimeout(3000);
 
     /********************************************
-     * 드롭다운 열기
-     ********************************************/
-    await page.click(
-      "#sel_move_svwr_id .selected",
-      {
-        force: true
-      }
-    );
-
-    console.log(
-      "랙 드롭다운 열기"
-    );
-
-    await page.waitForTimeout(2000);
-
-    /********************************************
-     * 렉 선택
+     * 렉 버튼 대기
      ********************************************/
     await page.waitForSelector(
-      "#sel_move_svwr_id .option.active ul li button",
+      "#sel_move_svwr_id button",
       {
         timeout: 10000
       }
     );
 
+    /********************************************
+     * 렉 버튼 목록
+     ********************************************/
     const rackButtons =
       await page.$$(
-        "#sel_move_svwr_id .option.active ul li button"
+        "#sel_move_svwr_id button"
       );
 
     let selected = false;
 
+    /********************************************
+     * 사용가능 렉 선택
+     ********************************************/
     for (const btn of rackButtons) {
 
       const available =
@@ -418,7 +408,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 렉 없으면 종료
+     * 사용가능 렉 없음
      ********************************************/
     if (!selected) {
 
@@ -434,7 +424,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 이동 버튼
+     * 이동 버튼 클릭
      ********************************************/
     console.log(
       "이동버튼 클릭 직전"
@@ -453,6 +443,9 @@ app.post("/disinfect", async (req, res) => {
 
     await page.waitForTimeout(5000);
 
+    /********************************************
+     * 완료
+     ********************************************/
     console.log(
       "전체 소독 프로세스 완료"
     );
