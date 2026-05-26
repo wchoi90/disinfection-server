@@ -59,7 +59,7 @@ app.post("/disinfect", async (req, res) => {
     });
 
     /********************************************
-     * 로그인 페이지 이동
+     * 로그인
      ********************************************/
     await page.goto(
       "https://eroumcare.com/bbs/login.php",
@@ -68,9 +68,6 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
-    /********************************************
-     * 로그인
-     ********************************************/
     await page.fill(
       "#user-id",
       loginId
@@ -118,7 +115,6 @@ app.post("/disinfect", async (req, res) => {
      ********************************************/
     let isWaiting = false;
     let isProgress = false;
-    let isDone = false;
 
     /********************************************
      * 소독대기 확인
@@ -151,7 +147,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 소독진행중 확인
+     * 진행중 확인
      ********************************************/
     if (!isWaiting) {
 
@@ -185,49 +181,11 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 소독완료 확인
-     ********************************************/
-    if (
-      !isWaiting &&
-      !isProgress
-    ) {
-
-      await page.click(
-        "#tab_disinfection_fixed"
-      );
-
-      await page.waitForTimeout(3000);
-
-      const doneNum =
-        await page.locator(
-          "#fixedNum"
-        ).innerText();
-
-      console.log({
-        doneNum
-      });
-
-      if (
-        doneNum.trim() === "1"
-      ) {
-
-        isDone = true;
-
-        console.log(
-          "이미 소독완료 상태"
-        );
-
-      }
-
-    }
-
-    /********************************************
      * 아무 상태도 아니면 종료
      ********************************************/
     if (
       !isWaiting &&
-      !isProgress &&
-      !isDone
+      !isProgress
     ) {
 
       await browser.close();
@@ -282,7 +240,7 @@ app.post("/disinfect", async (req, res) => {
       await page.waitForTimeout(5000);
 
       /******************************************
-       * 진행중 탭 이동
+       * 진행중 탭
        ******************************************/
       await page.click(
         "#tab_disinfection_progress"
@@ -297,64 +255,44 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 소독진행중 → 완료
-     ********************************************/
-    if (
-      isWaiting ||
-      isProgress
-    ) {
-
-      console.log(
-        "소독진행중 처리 시작"
-      );
-
-      await page.click(
-        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
-        {
-          force: true
-        }
-      );
-
-      console.log(
-        "소독진행중 체크 완료"
-      );
-
-      await page.waitForTimeout(2000);
-
-      await page.click(
-        "#btn_disinfection_done"
-      );
-
-      console.log(
-        "소독완료 버튼 클릭 완료"
-      );
-
-      await page.waitForTimeout(5000);
-
-      /******************************************
-       * 완료탭 이동
-       ******************************************/
-      await page.click(
-        "#tab_disinfection_fixed"
-      );
-
-      await page.waitForTimeout(3000);
-
-      console.log(
-        "소독완료 탭 이동 완료"
-      );
-
-    }
-
-    /********************************************
-     * 완료목록 체크
+     * 진행중 → 완료
      ********************************************/
     console.log(
-      "창고이동 처리 시작"
+      "소독진행중 처리 시작"
     );
 
+    await page.click(
+      "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
+      {
+        force: true
+      }
+    );
+
+    console.log(
+      "소독진행중 체크 완료"
+    );
+
+    await page.waitForTimeout(2000);
+
+    await page.click(
+      "#btn_disinfection_done"
+    );
+
+    console.log(
+      "소독완료 버튼 클릭 완료"
+    );
+
+    /********************************************
+     * 완료목록 생성 대기
+     ********************************************/
+    console.log(
+      "완료목록 생성 대기 시작"
+    );
+
+    await page.waitForTimeout(5000);
+
     await page.waitForSelector(
-      "#disinfection_item_fixed_list > tbody > tr > td.Tcenter > div > label",
+      "#disinfection_item_fixed_list > tbody > tr",
       {
         timeout: 30000
       }
@@ -364,6 +302,9 @@ app.post("/disinfect", async (req, res) => {
       "완료목록 생성 완료"
     );
 
+    /********************************************
+     * 완료목록 체크
+     ********************************************/
     await page.click(
       "#disinfection_item_fixed_list > tbody > tr > td.Tcenter > div > label",
       {
@@ -408,7 +349,7 @@ app.post("/disinfect", async (req, res) => {
     await page.waitForTimeout(2000);
 
     /********************************************
-     * 렉 버튼 찾기
+     * 렉 선택
      ********************************************/
     await page.waitForSelector(
       "#sel_move_svwr_id .option.active ul li button",
@@ -424,9 +365,6 @@ app.post("/disinfect", async (req, res) => {
 
     let selected = false;
 
-    /********************************************
-     * 사용가능 렉 선택
-     ********************************************/
     for (const btn of rackButtons) {
 
       const available =
@@ -456,9 +394,6 @@ app.post("/disinfect", async (req, res) => {
           text
         );
 
-        /****************************************
-         * 렉 클릭
-         ****************************************/
         await btn.click({
           force: true
         });
@@ -483,7 +418,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 사용가능 렉 없음
+     * 렉 없으면 종료
      ********************************************/
     if (!selected) {
 
@@ -518,9 +453,6 @@ app.post("/disinfect", async (req, res) => {
 
     await page.waitForTimeout(5000);
 
-    /********************************************
-     * 완료
-     ********************************************/
     console.log(
       "전체 소독 프로세스 완료"
     );
