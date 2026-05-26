@@ -147,7 +147,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 진행중 확인
+     * 소독진행중 확인
      ********************************************/
     if (!isWaiting) {
 
@@ -240,7 +240,7 @@ app.post("/disinfect", async (req, res) => {
       await page.waitForTimeout(5000);
 
       /******************************************
-       * 진행중 탭
+       * 진행중 탭 이동
        ******************************************/
       await page.click(
         "#tab_disinfection_progress"
@@ -255,7 +255,7 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 진행중 → 완료
+     * 소독진행중 → 완료
      ********************************************/
     console.log(
       "소독진행중 처리 시작"
@@ -377,16 +377,30 @@ app.post("/disinfect", async (req, res) => {
         available
       );
 
-      if (available === "1") {
+      /******************************************
+       * 0보다 크면 선택 가능
+       ******************************************/
+      if (
+        available &&
+        Number(available) > 0
+      ) {
 
         console.log(
           "선택시도:",
           text
         );
 
-        await btn.click({
-          force: true
-        });
+        /****************************************
+         * JS 클릭
+         ****************************************/
+        await page.evaluate(
+          el => el.click(),
+          btn
+        );
+
+        console.log(
+          "렉 클릭 JS 실행 완료"
+        );
 
         await page.waitForTimeout(2000);
 
