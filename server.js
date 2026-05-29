@@ -1,510 +1,230 @@
-const express = require("express");
-const { chromium } = require("playwright");
+const express =
+  require("express");
 
-const app = express();
+const {
+  chromium
+} =
+  require("playwright");
 
-app.use(express.json());
+const app =
+  express();
 
-/************************************************
- * 기본 테스트
- ************************************************/
-app.get("/", (req, res) => {
+app.use(
+  express.json()
+);
 
-  res.send("Server OK");
+const PORT =
+  process.env.PORT || 3000;
 
-});
+/****************************************
+ * 전역브라우저
+ ****************************************/
+let browser;
+let page;
+let isLoggedIn = false;
 
-/************************************************
- * 소독 처리
- ************************************************/
-app.post("/disinfect", async (req, res) => {
+/****************************************
+ * 브라우저 시작
+ ****************************************/
+async function initBrowser(){
 
-  const {
-    loginId,
-    loginPw,
-    fullBarcode
-  } = req.body;
+  console.log(
+    "브라우저 시작"
+  );
 
-  console.log(req.body);
+  browser =
+    await chromium.launch({
 
-  let browser;
+      headless:true,
 
-  try {
-
-    /********************************************
-     * 브라우저 실행
-     ********************************************/
-    browser =
-      await chromium.launch({
-
-        headless: true
-
-      });
-
-    const page =
-      await browser.newPage();
-
-    /********************************************
-     * dialog 자동확인
-     ********************************************/
-    page.on("dialog", async dialog => {
-
-      console.log(
-        "팝업:",
-        dialog.message()
-      );
-
-      await dialog.accept();
+      args:[
+        "--no-sandbox",
+        "--disable-setuid-sandbox"
+      ]
 
     });
 
-    /********************************************
-     * 로그인
-     ********************************************/
-    await page.goto(
-      "https://eroumcare.com/bbs/login.php",
-      {
-        waitUntil: "networkidle"
-      }
-    );
+  const context =
+    await browser.newContext();
 
-    await page.fill(
-      "#user-id",
-      loginId
-    );
+  page =
+    await context.newPage();
 
-    await page.fill(
-      "#user-pass",
-      loginPw
-    );
+}
 
-    await page.click(
-      ".btn_submit_01"
-    );
+/****************************************
+ * 로그인 유지
+ ****************************************/
+async function login(loginId,loginPw){
 
-    await page.waitForTimeout(3000);
-
-    console.log("로그인 성공");
-
-    /********************************************
-     * 소독 페이지 이동
-     ********************************************/
-    await page.goto(
-      "https://eroumcare.com/subrental/warehouse/disinfection.php",
-      {
-        waitUntil: "networkidle"
-      }
-    );
-
-    /********************************************
-     * 바코드 검색
-     ********************************************/
-    await page.fill(
-      "#search_text",
-      fullBarcode
-    );
-
-    await page.click(
-      "#search_btn"
-    );
-
-    await page.waitForTimeout(3000);
-
-    /********************************************
-     * 상태 변수
-     ********************************************/
-    let isWaiting = false;
-    let isProgress = false;
-
-    /********************************************
-     * 소독대기 확인
-     ********************************************/
-    await page.click(
-      "#tab_disinfection_waiting"
-    );
-
-    await page.waitForTimeout(2000);
-
-    const waitingNum =
-      await page.locator(
-        "#waitingNum"
-      ).innerText();
-
-    console.log({
-      waitingNum
-    });
-
-    if (
-      waitingNum.trim() === "1"
-    ) {
-
-      isWaiting = true;
-
-      console.log(
-        "소독대기 상태"
-      );
-
-    }
-
-    /********************************************
-     * 소독진행중 확인
-     ********************************************/
-    if (!isWaiting) {
-
-      await page.click(
-        "#tab_disinfection_progress"
-      );
-
-      await page.waitForTimeout(3000);
-
-      const progressNum =
-        await page.locator(
-          "#progressNum"
-        ).innerText();
-
-      console.log({
-        progressNum
-      });
-
-      if (
-        progressNum.trim() === "1"
-      ) {
-
-        isProgress = true;
-
-        console.log(
-          "이미 소독진행중 상태"
-        );
-
-      }
-
-    }
-
-    /********************************************
-     * 아무 상태도 아니면 종료
-     ********************************************/
-    if (
-      !isWaiting &&
-      !isProgress
-    ) {
-
-      await browser.close();
-
-      return res.json({
-
-        success: false,
-        error: "바코드 없음"
-
-      });
-
-    }
-
-    /********************************************
-     * 소독대기 → 진행중
-     ********************************************/
-    if (isWaiting) {
-
-      console.log(
-        "소독대기 처리 시작"
-      );
-
-      await page.click(
-        "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
-        {
-          force: true
-        }
-      );
-
-      console.log(
-        "소독대기 체크 완료"
-      );
-
-      await page.click(
-        "#disinfection_order_btn"
-      );
-
-      console.log(
-        "소독지시 버튼 클릭"
-      );
-
-      await page.waitForTimeout(2000);
-
-      await page.click(
-        "#order_submit"
-      );
-
-      console.log(
-        "이동 버튼 클릭"
-      );
-
-      await page.waitForTimeout(5000);
-
-      /******************************************
-       * 진행중 탭 이동
-       ******************************************/
-      await page.click(
-        "#tab_disinfection_progress"
-      );
-
-      await page.waitForTimeout(3000);
-
-      console.log(
-        "소독진행중 탭 이동 완료"
-      );
-
-    }
-
-    /********************************************
-     * 소독진행중 → 완료
-     ********************************************/
-    console.log(
-      "소독진행중 처리 시작"
-    );
-
-    await page.click(
-      "#disinfection_item_list > tbody > tr > td.Tcenter > div > label",
-      {
-        force: true
-      }
-    );
+  if(isLoggedIn){
 
     console.log(
-      "소독진행중 체크 완료"
+      "이미 로그인됨"
     );
 
-    await page.waitForTimeout(2000);
-
-    await page.click(
-      "#btn_disinfection_done"
-    );
-
-    console.log(
-      "소독완료 버튼 클릭 완료"
-    );
-
-    /********************************************
-     * 완료목록 생성 대기
-     ********************************************/
-    console.log(
-      "완료목록 생성 대기 시작"
-    );
-
-    await page.waitForTimeout(5000);
-
-    await page.waitForSelector(
-      "#disinfection_item_fixed_list > tbody > tr",
-      {
-        timeout: 30000
-      }
-    );
-
-    console.log(
-      "완료목록 생성 완료"
-    );
-
-    /********************************************
-     * 완료목록 체크
-     ********************************************/
-    await page.click(
-      "#disinfection_item_fixed_list > tbody > tr > td.Tcenter > div > label",
-      {
-        force: true
-      }
-    );
-
-    console.log(
-      "완료목록 체크 완료"
-    );
-
-    /********************************************
-     * 창고이동 버튼
-     ********************************************/
-    await page.click(
-      "#btn_move_rack",
-      {
-        force: true
-      }
-    );
-
-    console.log(
-      "창고이동 버튼 클릭"
-    );
-
-    await page.waitForTimeout(3000);
-
-    /********************************************
-     * 렉 버튼 대기
-     ********************************************/
-    await page.waitForSelector(
-      "#sel_move_svwr_id button",
-      {
-        timeout: 10000
-      }
-    );
-
-    /********************************************
-     * 렉 버튼 목록
-     ********************************************/
-    const rackButtons =
-      await page.$$(
-        "#sel_move_svwr_id button"
-      );
-
-    let selected = false;
-
-    /********************************************
-     * 사용가능 렉 선택
-     ********************************************/
-    for (const btn of rackButtons) {
-
-      const available =
-        await btn.getAttribute(
-          "data-available"
-        );
-
-      const value =
-        await btn.getAttribute(
-          "value"
-        );
-
-      const text =
-        await btn.innerText();
-
-      console.log(
-        "랙:",
-        text,
-        "available:",
-        available
-      );
-
-      /******************************************
-       * 0보다 크면 선택 가능
-       ******************************************/
-      if (
-        available &&
-        Number(available) > 0
-      ) {
-
-        console.log(
-          "선택시도:",
-          text
-        );
-
-        /****************************************
-         * JS 클릭
-         ****************************************/
-        await page.evaluate(
-          el => el.click(),
-          btn
-        );
-
-        console.log(
-          "렉 클릭 JS 실행 완료"
-        );
-
-        await page.waitForTimeout(2000);
-
-        console.log(
-          "선택된 rack value:",
-          value
-        );
-
-        selected = true;
-
-        console.log(
-          "렉 선택 완료"
-        );
-
-        break;
-
-      }
-
-    }
-
-    /********************************************
-     * 사용가능 렉 없음
-     ********************************************/
-    if (!selected) {
-
-      await browser.close();
-
-      return res.json({
-
-        success: false,
-        error: "사용가능 렉 없음"
-
-      });
-
-    }
-
-    /********************************************
-     * 이동 버튼 클릭
-     ********************************************/
-    console.log(
-      "이동버튼 클릭 직전"
-    );
-
-    await page.click(
-      "#move_rack_submit",
-      {
-        force: true
-      }
-    );
-
-    console.log(
-      "이동버튼 클릭 직후"
-    );
-
-    await page.waitForTimeout(5000);
-
-    /********************************************
-     * 완료
-     ********************************************/
-    console.log(
-      "전체 소독 프로세스 완료"
-    );
-
-    await browser.close();
-
-    res.json({
-
-      success: true,
-      barcode: fullBarcode
-
-    });
-
-  } catch (e) {
-
-    console.log(e);
-
-    if (browser) {
-
-      await browser.close();
-
-    }
-
-    res.json({
-
-      success: false,
-      error: String(e)
-
-    });
+    return;
 
   }
 
-});
-
-/************************************************
- * 서버 시작
- ************************************************/
-const PORT =
-  process.env.PORT || 8080;
-
-app.listen(PORT, () => {
-
   console.log(
-    "서버 실행중:",
-    PORT
+    "로그인 시작"
   );
 
-});
+  await page.goto(
+
+    "https://login.ecount.com/Login/#/Login",
+
+    {
+      waitUntil:"networkidle"
+    }
+
+  );
+
+  await page.fill(
+    "#userid",
+    loginId
+  );
+
+  await page.fill(
+    "#pwd",
+    loginPw
+  );
+
+  await page.click(
+    "#save"
+  );
+
+  await page.waitForTimeout(
+    3000
+  );
+
+  isLoggedIn = true;
+
+  console.log(
+    "로그인 완료"
+  );
+
+}
+
+/****************************************
+ * 소독 API
+ ****************************************/
+app.post(
+  "/disinfect",
+  async(req,res)=>{
+
+    try{
+
+      const {
+
+        loginId,
+        loginPw,
+        fullBarcode
+
+      } = req.body;
+
+      console.log(
+        "요청 바코드:",
+        fullBarcode
+      );
+
+      /********************************
+       * 로그인 유지
+       ********************************/
+      await login(
+        loginId,
+        loginPw
+      );
+
+      /********************************
+       * 실제 페이지 이동
+       ********************************/
+      await page.goto(
+
+        "https://eroumcare.com/subrental/warehouse/disinfection.php",
+
+        {
+          waitUntil:"networkidle"
+        }
+
+      );
+
+      /********************************
+       * 바코드 입력
+       ********************************/
+      await page.fill(
+
+        "input[type='text']",
+
+        fullBarcode
+
+      );
+
+      /********************************
+       * 엔터
+       ********************************/
+      await page.keyboard.press(
+        "Enter"
+      );
+
+      /********************************
+       * 처리대기
+       ********************************/
+      await page.waitForTimeout(
+        2000
+      );
+
+      /********************************
+       * 성공응답
+       ********************************/
+      res.json({
+
+        success:true,
+
+        barcode:
+          fullBarcode
+
+      });
+
+    } catch(err){
+
+      console.error(err);
+
+      /********************************
+       * 로그인 세션 초기화
+       ********************************/
+      isLoggedIn = false;
+
+      res.status(500).json({
+
+        success:false,
+
+        message:
+          err.toString()
+
+      });
+
+    }
+
+  }
+
+);
+
+/****************************************
+ * 서버시작
+ ****************************************/
+app.listen(
+  PORT,
+  async()=>{
+
+    console.log(
+      "서버 시작:",
+      PORT
+    );
+
+    await initBrowser();
+
+  }
+
+);
