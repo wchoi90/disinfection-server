@@ -6,11 +6,12 @@ const app = express();
 app.use(express.json());
 
 /************************************************
- * 전역 브라우저 유지
+ * 전역 변수
  ************************************************/
 let browser;
 let page;
 let isLoggedIn = false;
+let isProcessing = false;
 
 /************************************************
  * 브라우저 초기화
@@ -74,13 +75,10 @@ async function ensureLogin(
     "로그인 시작"
   );
 
-  /********************************************
-   * 로그인
-   ********************************************/
   await page.goto(
     "https://eroumcare.com/bbs/login.php",
     {
-      waitUntil: "networkidle"
+      waitUntil: "domcontentloaded"
     }
   );
 
@@ -98,7 +96,10 @@ async function ensureLogin(
     ".btn_submit_01"
   );
 
-  await page.waitForTimeout(3000);
+  /********************************************
+   * 로그인 완료 대기
+   ********************************************/
+  await page.waitForTimeout(1000);
 
   console.log(
     "로그인 성공"
@@ -122,6 +123,22 @@ app.get("/", (req, res) => {
  ************************************************/
 app.post("/disinfect", async (req, res) => {
 
+  /********************************************
+   * 동시실행 방지
+   ********************************************/
+  if (isProcessing) {
+
+    return res.json({
+
+      success: false,
+      error: "다른 작업 처리중"
+
+    });
+
+  }
+
+  isProcessing = true;
+
   const {
     loginId,
     loginPw,
@@ -130,7 +147,7 @@ app.post("/disinfect", async (req, res) => {
 
   console.log(
     "요청:",
-    req.body
+    fullBarcode
   );
 
   try {
@@ -149,8 +166,16 @@ app.post("/disinfect", async (req, res) => {
     await page.goto(
       "https://eroumcare.com/subrental/warehouse/disinfection.php",
       {
-        waitUntil: "networkidle"
+        waitUntil: "domcontentloaded"
       }
+    );
+
+    /********************************************
+     * 기존 검색값 제거
+     ********************************************/
+    await page.fill(
+      "#search_text",
+      ""
     );
 
     /********************************************
@@ -165,7 +190,10 @@ app.post("/disinfect", async (req, res) => {
       "#search_btn"
     );
 
-    await page.waitForTimeout(3000);
+    /********************************************
+     * 최소 대기
+     ********************************************/
+    await page.waitForTimeout(700);
 
     /********************************************
      * 상태 변수
@@ -180,7 +208,7 @@ app.post("/disinfect", async (req, res) => {
       "#tab_disinfection_waiting"
     );
 
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(500);
 
     const waitingNum =
       await page.locator(
@@ -212,7 +240,7 @@ app.post("/disinfect", async (req, res) => {
         "#tab_disinfection_progress"
       );
 
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(500);
 
       const progressNum =
         await page.locator(
@@ -238,12 +266,16 @@ app.post("/disinfect", async (req, res) => {
     }
 
     /********************************************
-     * 아무 상태도 아니면 종료
+     * 둘다 아니면 즉시 종료
      ********************************************/
     if (
       !isWaiting &&
       !isProgress
     ) {
+
+      console.log(
+        "바코드 없음 종료"
+      );
 
       return res.json({
 
@@ -260,7 +292,7 @@ app.post("/disinfect", async (req, res) => {
     if (isWaiting) {
 
       console.log(
-        "소독대기 처리 시작"
+        "소독대기 처리"
       );
 
       await page.click(
@@ -270,29 +302,17 @@ app.post("/disinfect", async (req, res) => {
         }
       );
 
-      console.log(
-        "소독대기 체크 완료"
-      );
-
       await page.click(
         "#disinfection_order_btn"
       );
 
-      console.log(
-        "소독지시 버튼 클릭"
-      );
-
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(500);
 
       await page.click(
         "#order_submit"
       );
 
-      console.log(
-        "이동 버튼 클릭"
-      );
-
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(1000);
 
       /******************************************
        * 진행중 탭 이동
@@ -301,11 +321,7 @@ app.post("/disinfect", async (req, res) => {
         "#tab_disinfection_progress"
       );
 
-      await page.waitForTimeout(3000);
-
-      console.log(
-        "소독진행중 탭 이동 완료"
-      );
+      await page.waitForTimeout(700);
 
     }
 
@@ -313,7 +329,7 @@ app.post("/disinfect", async (req, res) => {
      * 소독진행중 → 완료
      ********************************************/
     console.log(
-      "소독진행중 처리 시작"
+      "소독완료 처리"
     );
 
     await page.click(
@@ -323,33 +339,19 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
-    console.log(
-      "소독진행중 체크 완료"
-    );
-
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(300);
 
     await page.click(
       "#btn_disinfection_done"
     );
 
-    console.log(
-      "소독완료 버튼 클릭 완료"
-    );
-
     /********************************************
-     * 완료목록 생성 대기
+     * 완료목록 생성
      ********************************************/
-    console.log(
-      "완료목록 생성 대기 시작"
-    );
-
-    await page.waitForTimeout(5000);
-
     await page.waitForSelector(
       "#disinfection_item_fixed_list > tbody > tr",
       {
-        timeout: 30000
+        timeout: 5000
       }
     );
 
@@ -367,10 +369,6 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
-    console.log(
-      "완료목록 체크 완료"
-    );
-
     /********************************************
      * 창고이동 버튼
      ********************************************/
@@ -381,11 +379,7 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
-    console.log(
-      "창고이동 버튼 클릭"
-    );
-
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(700);
 
     /********************************************
      * 렉 버튼 대기
@@ -393,7 +387,7 @@ app.post("/disinfect", async (req, res) => {
     await page.waitForSelector(
       "#sel_move_svwr_id button",
       {
-        timeout: 10000
+        timeout: 5000
       }
     );
 
@@ -417,11 +411,6 @@ app.post("/disinfect", async (req, res) => {
           "data-available"
         );
 
-      const value =
-        await btn.getAttribute(
-          "value"
-        );
-
       const text =
         await btn.innerText();
 
@@ -437,25 +426,9 @@ app.post("/disinfect", async (req, res) => {
         Number(available) > 0
       ) {
 
-        console.log(
-          "선택시도:",
-          text
-        );
-
         await page.evaluate(
           el => el.click(),
           btn
-        );
-
-        console.log(
-          "렉 클릭 완료"
-        );
-
-        await page.waitForTimeout(2000);
-
-        console.log(
-          "선택된 rack value:",
-          value
         );
 
         selected = true;
@@ -487,10 +460,6 @@ app.post("/disinfect", async (req, res) => {
     /********************************************
      * 이동 버튼 클릭
      ********************************************/
-    console.log(
-      "이동버튼 클릭 직전"
-    );
-
     await page.click(
       "#move_rack_submit",
       {
@@ -498,20 +467,13 @@ app.post("/disinfect", async (req, res) => {
       }
     );
 
+    await page.waitForTimeout(1000);
+
     console.log(
-      "이동버튼 클릭 직후"
+      "전체 프로세스 완료"
     );
 
-    await page.waitForTimeout(5000);
-
-    /********************************************
-     * 완료
-     ********************************************/
-    console.log(
-      "전체 소독 프로세스 완료"
-    );
-
-    res.json({
+    return res.json({
 
       success: true,
       barcode: fullBarcode
@@ -523,16 +485,23 @@ app.post("/disinfect", async (req, res) => {
     console.log(e);
 
     /********************************************
-     * 로그인 상태 초기화
+     * 로그인상태 초기화
      ********************************************/
     isLoggedIn = false;
 
-    res.json({
+    return res.json({
 
       success: false,
       error: String(e)
 
     });
+
+  } finally {
+
+    /********************************************
+     * 작업잠금 해제
+     ********************************************/
+    isProcessing = false;
 
   }
 
